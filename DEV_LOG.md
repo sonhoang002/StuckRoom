@@ -155,3 +155,57 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Next
 - Owner-reply flow: creating a reply as the question owner should set the question back to active and restart the clock (third copy of the owner/get logic → good time to extract a helper).
 - Then the 7-day cron job.
+
+---
+
+## 2026-11-18 — Design: owner replies go through a `postReply` action
+
+### Developer
+- Chose option A: a single `postReply` server action creates the reply and, when the caller owns the question, restarts the question's clock. Reason: with two browser calls (option B) an interrupted browser leaves the question un-updated.
+- Clarified: the cron's `now` is computed fresh each run; only `lastActiveDate` must be written by code.
+- `api-status.tsx` diff is formatter-only (quotes/semicolons on save); agent confirmed no logic change.
+
+### Agent
+- Confirmed from `src/server/action-routes.ts` and SDK source that action `tools.*` calls carry the caller's `userId`, so `tools.create` records the **caller** as `createdBy` (reply ownership works). The same file warns that action tools read/write any row with RBAC off.
+- Flagged for the spec: `postReply` must refuse private questions for non-owners itself, because `tools.get` bypasses the `'published'` read rule.
+- Not yet verified: whether records written by actions broadcast to realtime subscribers (source shows `broadcastChange` in the shared write path; to confirm in the dev server).
+
+### Verification
+- No code changes; tests not re-run.
+
+---
+
+## 2026-11-18 — `postReply` (in progress)
+
+### Developer
+- Wrote `postReply` in flat early-return style: validates `questionId`/`content` (trimmed) and optional `replyToId`; loads the question; refuses non-owners on private questions; validates the parent reply (same question, top-level); creates the reply from params once; updates the question for owner replies unless solved; returns the create result.
+- Decisions: owner reply does **not** reopen a solved question; a sent `replyToId: null` is rejected (browser must omit the key).
+
+### Agent
+- Explained `undefined` vs `null` for optional params and how `tools.get` reports not-found.
+- Wrote 18 `postReply` tests with a fake per-collection record store.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- `npm run test:unit`: **4 failed | 52 passed (56)** (agent).
+  - 3 failures: owner check inverted (`createdBy !== ctx.userId` at the clock update), so other users' replies restart the owner's clock and owner replies don't.
+  - 1 failure: parent top-level check is `replyToId !== ""`; a parent whose empty `replyToId` is stored as absent would be wrongly refused. Platform storage of empty optional text is unverified.
+- Open: if the question update fails after the reply was created, the action returns failure though the reply exists (retry → duplicate).
+
+---
+
+## 2026-11-18 — `postReply` complete; source-control decision
+
+### Developer
+- Fixed the inverted owner check (`createdBy === ctx.userId`) and made the parent top-level check a truthiness check on `replyToId`.
+- Decided: if the reply is created but the clock update fails, return the create result (success) and `console.error` the failure. Reason: reporting failure would make users resend and duplicate the reply; a missed clock refresh only risks an early `inactive`.
+- Accepted the timeline: Wed backend + dev server, Thu pages, Fri cron/presence/AI/first deploy, Sat fixes + write-up.
+- Source control: **DeepSpace cloud repo** (latches permanently at first push/deploy).
+
+### Agent
+- Added a test for the clock-update-failure path and a schema test requiring `reply` member `create: false` (replies only via `postReply`).
+- Checked docs: a DeepSpace-source app may keep a GitHub "review copy" (`git remote add origin ...; git push -u origin main`; never `--mirror`). The docs don't describe how outside reviewers access the cloud repo.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- `npm run test:unit`: 57/57 before the new schema test; after adding it, see next entry / expected 1 failure until `reply` member `create` is set to `false`.

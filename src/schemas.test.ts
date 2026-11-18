@@ -70,6 +70,10 @@ describe('schemas', () => {
   describe('reply visibility (accepted limitation: replies are readable by anyone)', () => {
     const reply = appSchemas.find((s) => s.name === 'reply')!
 
+    it('blocks direct reply creation by members (replies go through the postReply action)', () => {
+      expect(reply.permissions.member?.create).toBe(false)
+    })
+
     it('lets signed-out visitors read replies so public threads are not empty', () => {
       for (const role of ['*', 'viewer']) {
         expect(reply.permissions[role]?.read, `role ${role}`).toBe(true)
