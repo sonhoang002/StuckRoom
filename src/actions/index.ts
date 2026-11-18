@@ -32,4 +32,36 @@ export const actions: Record<string, ActionHandler<Env>> = {
 
     return updatedAction;
   },
+
+  reopen: async (ctx) => {
+    const questionId = ctx.params.questionId;
+
+    if (typeof questionId !== "string" || questionId.length === 0) {
+      return {
+        success: false,
+        error: "Missing or invalid questionId",
+      };
+    }
+
+    const getActionData = await ctx.tools.get("question", questionId);
+
+    if (!getActionData.success) {
+      return getActionData;
+    }
+
+    if (getActionData.data.record.createdBy !== ctx.userId) {
+      return {
+        success: false,
+        error: "Only the question's owner can reopen it",
+      };
+    }
+
+    const updatedAction = await ctx.tools.update("question", questionId, {
+      status: "active",
+      visibility: "public",
+      lastActiveDate: new Date().toISOString(),
+    });
+
+    return updatedAction;
+  },
 };

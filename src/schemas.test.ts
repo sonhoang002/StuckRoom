@@ -56,6 +56,10 @@ describe('schemas', () => {
       expect(col?.interpretation).toMatchObject({ options: ['public', 'private'] })
     })
 
+    it('lets members write only title and content directly (status/visibility go through actions)', () => {
+      expect(question.permissions.member?.writableFields).toEqual(['title', 'content'])
+    })
+
     it('hides private questions from every non-admin role, signed in or not', () => {
       for (const role of ['*', 'viewer', 'member']) {
         expect(question.permissions[role]?.read, `role ${role}`).toBe('published')

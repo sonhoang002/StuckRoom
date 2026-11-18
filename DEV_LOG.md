@@ -109,3 +109,49 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Next
 - Add `writableFields: ["title", "content"]` to the `member` role on `question` so status/visibility/lastActiveDate can only change through actions.
 - Then: `reopen` action (solved → active, owner only).
+
+---
+
+## 2026-11-18 — `writableFields`, `reopen`, and the inactivity clock
+
+### Developer
+- Committed schemas + `markSolved` (`812128d`).
+- Added `writableFields: ["title", "content"]` to `question` member role.
+- Wrote a `reopen` action (owner-only, sets `status: "active"`, `visibility: "public"`), registered as `reopon` (typo).
+- Added `timestampTrigger: { field: "createdAt" }` to `lastActiveDate`, intending it to start the 7-day clock at creation.
+
+### Agent
+- Read SDK source (`worker.js` write path):
+  - `updatedAt` is set to the same `now` as `createdAt` on insert, but is overwritten on **every** update (title edits, `markSolved`, the future cron job itself), so it means "row last changed", not "owner last active".
+  - `timestampTrigger.field` is looked up in the record's own `data` columns. `createdAt` lives on the envelope, not in `data`, so this trigger never fires — the setting is a no-op.
+- Added a `writableFields` schema test; refactored action tests so shared owner-only rules run for both `markSolved` and `reopen`.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- `npm run test:unit`: **8 failed | 26 passed (34)** (agent). All 8 failures: `reopen is not registered` (action is named `reopon`).
+- Not run: dev server or real HTTP calls.
+
+### Open
+- Remove the no-op trigger; cron will use `lastActiveDate ?? createdAt`.
+- Does `reopen` count as owner activity (set `lastActiveDate`)? If not, reopening a question older than 7 days goes inactive again on the next cron run.
+
+---
+
+## 2026-11-18 — `reopen` complete
+
+### Developer
+- Renamed `reopon` → `reopen`; removed the no-op `timestampTrigger`.
+- `reopen` now also sets `lastActiveDate: new Date().toISOString()` (reopening counts as owner activity, so the 7-day clock restarts).
+
+### Agent
+- Added a test that freezes time and checks `reopen` writes `lastActiveDate` as the current ISO timestamp.
+- Clarified: nothing updates `lastActiveDate` automatically. The future cron job only *reads* `lastActiveDate ?? createdAt`; only action code writes it.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- `npm run test:unit`: **35 passed (35)** (agent).
+- Not run: dev server or real HTTP calls.
+
+### Next
+- Owner-reply flow: creating a reply as the question owner should set the question back to active and restart the clock (third copy of the owner/get logic → good time to extract a helper).
+- Then the 7-day cron job.
