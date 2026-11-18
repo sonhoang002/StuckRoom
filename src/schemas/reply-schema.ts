@@ -28,7 +28,13 @@ export const replySchema: CollectionSchema = {
   permissions: {
     "*": { read: true, create: false, update: false, delete: false },
     viewer: { read: true, create: false, update: false, delete: false },
-    member: { read: true, create: false, update: "own", delete: "own" },
+    member: {
+      read: true,
+      create: false,
+      update: "own",
+      delete: "own",
+      writableFields: ["content"],
+    },
     admin: { read: true, create: true, update: true, delete: true },
   },
 };

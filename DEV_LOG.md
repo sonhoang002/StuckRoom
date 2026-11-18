@@ -209,3 +209,26 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check`: passes (agent).
 - `npm run test:unit`: 57/57 before the new schema test; after adding it, see next entry / expected 1 failure until `reply` member `create` is set to `false`.
+
+---
+
+## 2026-11-18 — Closing the reply edit gap; first local run
+
+### Developer
+- Set `reply` member `create: false` (committed in `46ff084` with `reopen`/`postReply`).
+- Added `writableFields: ["content"]` to `reply` member after the agent pointed out that `update: "own"` let an owner re-point `replyToId` and break the one-level rule.
+- Decision: replies stay when the comment they answer is deleted (UI will show them as replies to a deleted comment). No cascade.
+- Ran the app locally (`npm run dev`); the starter page loads with its placeholder content.
+- Asked whether all direct writes should become actions. Conclusion: no — only where the platform's permissions cannot express the rule (reply creation, status changes). Owner-only edits/deletes stay on `'own'` + `writableFields`.
+
+### Agent
+- Explained why `create: false` still allows `postReply` (actions skip the RBAC create check) and "one repo, two remotes" for the DeepSpace + GitHub review copy.
+- Added a schema test for reply `writableFields`.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- `npm run test:unit`: **59 passed (59)** (agent).
+- Local dev server: run by developer; agent did not observe it.
+
+### Next (Thu)
+- Pages: rooms list, single room with replies, My Questions.

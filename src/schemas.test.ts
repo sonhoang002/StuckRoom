@@ -74,6 +74,10 @@ describe('schemas', () => {
       expect(reply.permissions.member?.create).toBe(false)
     })
 
+    it('lets members edit only the text of their own reply (replyToId cannot be re-pointed)', () => {
+      expect(reply.permissions.member).toMatchObject({ update: 'own', writableFields: ['content'] })
+    })
+
     it('lets signed-out visitors read replies so public threads are not empty', () => {
       for (const role of ['*', 'viewer']) {
         expect(reply.permissions[role]?.read, `role ${role}`).toBe(true)
