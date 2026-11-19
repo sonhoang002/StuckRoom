@@ -315,3 +315,34 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check`: passes; eslint: no output (agent).
 - Browser behavior: reported by developer, not observed by agent.
+
+---
+
+## 2026-11-19 — `groupReplies` (in progress)
+
+### Developer
+- Started `src/lib/threads.ts` `groupReplies` (two-pass Map approach) and added `Reply` and `Group` types to `src/types.ts`.
+
+### Agent
+- Explained multiple `useQuery` calls with destructuring renames, and the two-pass grouping algorithm with a worked example.
+- Found that `useQuery` returns `RecordData<T>[]` (exported type from `deepspace`: `recordId`, `data`, `createdBy`, `createdAt`, `updatedAt`).
+- Wrote `src/lib/threads.test.ts` (8 tests) as the target spec: input `RecordData<Reply>[]`, output groups `{ reply, children }`; orphans become top-level; child-before-parent still nests; nothing lost or duplicated.
+- Review findings: missing `}` (TS1005); top-level groups keyed by `replyToId` (`""` for all, so they overwrite each other) instead of the reply's own `recordId`, which `Reply` (data only) doesn't contain; `Group.reply` stores a string instead of the reply; `children: object`; orphans dropped; no return value.
+
+### Verification
+- `npm run type-check`: fails, `threads.ts(24,1) TS1005 '}' expected` (agent).
+- `npx vitest run src/lib/threads.test.ts`: transform fails on the same syntax error; 0 tests ran (agent).
+
+---
+
+## 2026-11-19 — `groupReplies` complete
+
+### Developer
+- Rewrote `groupReplies(replies: RecordData<Reply>[]): Group[]`: pass 1 keys top-level replies by `recordId`; pass 2 attaches children or promotes orphans (deleted parent) to top-level; returns `Array.from(map.values())`. `Group` now holds the full reply envelope and typed children, defined in `threads.ts`.
+
+### Agent
+- Review leftovers: old `Group` type in `src/types.ts` is unused and has the wrong shape; `Group` in `threads.ts` isn't exported; `Reply.replyToId` still non-optional.
+
+### Verification
+- `npm run test:unit`: **69 passed (69)**, including 8 `groupReplies` tests (agent).
+- `npm run type-check`: passes (agent).

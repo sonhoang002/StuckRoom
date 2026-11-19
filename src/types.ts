@@ -5,3 +5,9 @@ export type Question = {
   visibility: "public" | "private";
   lastActiveDate?: string | null;
 };
+
+export type Reply = {
+  content: string;
+  questionId: string;
+  replyToId?: string;
+};
