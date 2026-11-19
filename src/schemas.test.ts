@@ -56,6 +56,14 @@ describe('schemas', () => {
       expect(col?.interpretation).toMatchObject({ options: ['public', 'private'] })
     })
 
+    it.each([
+      ['title', 255],
+      ['content', 1000],
+    ])('requires %s server-side, capped at %i characters', (name, max) => {
+      const col = question.columns.find((c) => c.name === name)
+      expect(col).toMatchObject({ required: true, maxLength: max })
+    })
+
     it('lets members write only title and content directly (status/visibility go through actions)', () => {
       expect(question.permissions.member?.writableFields).toEqual(['title', 'content'])
     })

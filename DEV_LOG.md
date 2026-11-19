@@ -232,3 +232,86 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 
 ### Next (Thu)
 - Pages: rooms list, single room with replies, My Questions.
+
+---
+
+## 2026-11-18 — Rooms list page (first UI, in review)
+
+### Developer
+- Wrote `src/pages/(app)/rooms.tsx` using `useQuery<Question>("question", { where: { visibility: "public" }, orderBy: "createdAt", orderDir: "desc" })` with loading/error states; added a `Question` type in `src/pages/types.ts`; temporarily rendered `<Rooms />` from `home.tsx`.
+- Decisions: Rooms shows only public questions; My Questions shows only the caller's own questions (`where: { createdBy: <my id> }`); clicking a question opens its thread.
+
+### Agent
+- Explained `useQuery` (live, permission-filtered subscription returning envelopes) vs `useMutations` (the direct-write door) and which writes use actions instead.
+- Confirmed in SDK source (`worker.js` table query): client `where` supports schema columns plus `recordId` and `createdBy`; **unknown `where` keys are silently ignored** (a typo returns unfiltered results).
+- Review findings: accidental auto-import from a react-router internal file; page uses a named export (generouted routes need `export default`, so `/rooms` renders nothing); missing `key` on list items; `lastActiveDate` typed as `Date` but stored/returned as an ISO string and may be absent; types file lives inside `src/pages/`.
+
+### Verification
+- `npm run type-check`: passes (agent). Lint: no output for `rooms.tsx`.
+- Browser: not observed by agent.
+
+---
+
+## 2026-11-18 — Rooms list page fixes
+
+### Developer
+- Removed the accidental react-router internal import; switched to `export default`; restored `home.tsx`; moved the type to `src/types.ts`; added a `key`; changed `lastActiveDate` to `string | null`.
+
+### Agent
+- Review: `key={record.createdBy}` is not unique (one user, many questions); missing values come back as `undefined`, so an optional property (`?:`) fits `lastActiveDate` better than `| null` alone.
+
+### Verification
+- `npm run type-check`: passes; eslint on `rooms.tsx`/`types.ts`: no output (agent). Router lists `/rooms`.
+- Browser rendering of `/rooms`: not observed by agent.
+
+---
+
+## 2026-11-18 — Thread route and links
+
+### Developer
+- Moved the list to `src/pages/(app)/rooms/index.tsx`, added `rooms/[id].tsx` (reads `id` with typed `useParams("/rooms/:id")`), and wrapped each item in the typed `Link` with `key={record.recordId}`. `lastActiveDate?: string | null`.
+- Verified in the browser: `/rooms` renders "Found 0 questions" (no data yet).
+
+### Agent
+- Reviewed: all previous findings resolved. Router now lists `/rooms/:id` with `{ id: string }` params.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- Link click-through: not yet testable (no questions exist).
+
+### Next
+- New-question form (landing page) with `useMutations`, which also unblocks manual testing of the list and thread.
+
+---
+
+## 2026-11-19 — New-question form
+
+### Developer
+- Wrote `src/components/NewQuestionForm.tsx`: controlled inputs, `useMutations<NewQuestion>` with `type NewQuestion = Pick<Question, "title" | "content">`, `createConfirmed` with trimmed values, try/catch error message. Rendered on `home.tsx`.
+- Schema: `title` and `content` now `required: true`, `maxLength` 255 / 1000 (server-side validation via platform).
+- Reported the form "kinda works".
+
+### Agent
+- Added schema tests for required/maxLength.
+- Review findings (not changed by agent): no redirect to the new thread (returned id unused); form shown to signed-out visitors; no double-submit guard (two clicks → two questions); `ready` not used; content is a single-line `<input>` with no `maxLength` mirroring the schema; `catch (error)` shadows the `error` state.
+- Checked `useAuthProfileReady({ requireUser: true })`: waits for the signed-in user's profile; it does not redirect signed-out visitors.
+
+### Verification
+- `npm run type-check`: passes; eslint on form/home: no output (agent).
+- `npm run test:unit`: **61 passed (61)** (agent).
+- Browser: developer reports partial success; specifics pending.
+
+---
+
+## 2026-11-19 — New-question form fixes
+
+### Developer
+- Form now navigates to `/rooms/:id` with the id returned by `createConfirmed`; added `submitting` state (set before await, cleared in `finally`) and disables Submit while submitting; renamed catch variable; `import type`; `Textarea` with `maxLength` 255/1000 mirroring the schema.
+- Browser-verified by developer: posting lands on the thread page; signed-out visitors see questions on `/rooms` and cannot create them.
+
+### Agent
+- Review: `home.tsx` still renders the form for signed-out visitors (server rejects their submit, but the UI should show a sign-in prompt instead); title uses a multi-line `Textarea` where `Input` fits; `ready` not used.
+
+### Verification
+- `npm run type-check`: passes; eslint: no output (agent).
+- Browser behavior: reported by developer, not observed by agent.

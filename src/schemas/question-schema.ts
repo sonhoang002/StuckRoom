@@ -3,8 +3,20 @@ import { type CollectionSchema } from "deepspace/schema";
 export const questionSchema: CollectionSchema = {
   name: "question",
   columns: [
-    { name: "title", storage: "text", interpretation: "plain" },
-    { name: "content", storage: "text", interpretation: "plain" },
+    {
+      name: "title",
+      storage: "text",
+      interpretation: "plain",
+      required: true,
+      maxLength: 255,
+    },
+    {
+      name: "content",
+      storage: "text",
+      interpretation: "plain",
+      required: true,
+      maxLength: 1000,
+    },
     {
       name: "status",
       storage: "text",
