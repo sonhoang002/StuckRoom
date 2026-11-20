@@ -465,3 +465,47 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 
 ### Verification
 - No code changes. Last results: `npm run test:unit` 80/80, type-check clean (agent, earlier today). Latest commit `0e3eea8`.
+
+---
+
+## 2026-11-19 (evening) — First deploy
+
+### Developer
+- Committed `15f5043` "End of day 3" and ran `npx deepspace deploy`. Reports the live app "doesn't seem like anything wrong".
+
+### Agent
+- Confirmed with `npx deepspace status --json` / `app source --json` (read-only): live at **https://stuckroom.app.space**, serving commit `15f5043` (clean, `sourceDirty: false`), release seq 2, source provider **deepspace** (now permanent), trunk in sync with the `space` remote.
+
+### Verification
+- Deploy recorded and serving (agent, via CLI status).
+- Live-site behavior: developer's general check only; specific flows on the live URL not yet reported.
+
+---
+
+## 2026-11-20 — My Questions page: first attempt reviewed
+
+### Developer
+- Wrote `src/pages/(app)/(protected)/my-questions.tsx`: parent waits for `useUser()`'s `user`, passes `userId: string` to a child `MyQuestionList` that queries `where: { createdBy: userId }`; Mark Solved (active) / Reopen (solved or inactive) via `callAction`.
+- Asked whether `user.id` matches `record.createdBy`. Agent traced the SDK source: both come from the auth token's `sub` claim (client `index.js:1541`, worker `worker.js:6385`), and `where.createdBy` filters `_created_by` (`worker.js:2285`). Source reading only; not yet browser-verified.
+
+### Agent
+- Review findings: collection name `"questions"` should be `"question"`; action buttons are nested inside the `<Link>` (click likely navigates; invalid HTML); id passed through `recordId` state between click and submit (fragile; pass id as an argument); action errors returned from the handler instead of rendered; minor: debug `userId` output, unused `isLoading`, `import type`.
+
+### Verification
+- `npm run type-check` clean; `npx eslint` on the page clean; `npm run test:unit` **80 passed (80)** (agent, run from PowerShell — a run from Git Bash's `/c/...` path failed with "Vitest failed to find the current suite"; environment issue, not app code).
+- Browser: not yet tested.
+
+---
+
+## 2026-11-20 — My Questions page: review issues fixed
+
+### Developer
+- Fixed all review findings: collection `"question"`, title-only `Link`, id passed as a handler argument (no form/state), errors stored in state and rendered once above the list, `key` on the row `div`, `type="button"`, `isLoading` handled, `import type`.
+- Browser (developer-reported): clicking Mark Solved / Reopen changes the status; visibility did not change.
+
+### Agent
+- Explained that unchanged visibility is expected: both actions write `visibility: "public"`, new questions default to public, and only the (not yet built) 7-day cron makes a question private. The private→public reopen path is covered by `src/actions/index.test.ts` (inactive + private fixture). No remaining code findings.
+
+### Verification
+- `npm run type-check` clean; `npx eslint` on the page clean; `npm run test:unit` **80 passed (80)** (agent, PowerShell).
+- Two-window live update between `/my-questions` and `/rooms`: not yet reported.
