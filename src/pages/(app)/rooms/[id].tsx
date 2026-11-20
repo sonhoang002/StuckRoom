@@ -2,6 +2,8 @@ import { useParams } from "@/router";
 import type { Reply, Question } from "@/types";
 import { useQuery } from "deepspace";
 import { useUserLookup } from "deepspace";
+import { groupReplies } from "@/lib/threads";
+import { formatDate } from "@/lib/formatDate";
 
 export default function RoomDetail() {
   const { id } = useParams("/rooms/:id");
@@ -21,7 +23,13 @@ export default function RoomDetail() {
     orderBy: "createdAt",
     orderDir: "asc",
   });
+  const groups = groupReplies(replies);
+  const question = questions[0];
   const { getName } = useUserLookup();
+
+  if (!question) {
+    return <p>Question not found</p>;
+  }
 
   if (questionStatus === "loading" || repliesStatus === "loading") {
     return <p>Loading...</p>;
@@ -35,26 +43,39 @@ export default function RoomDetail() {
     return <p>{repliesError}</p>;
   }
 
-  if (questionStatus === "ready" && !questions[0]) {
-    return <p>Question not found</p>;
-  }
-
   return (
     <>
       <div>
-        <h1>{questions[0].data.title}</h1>
-        <p>{questions[0].data.content}</p>
+        <h1>{question.data.title}</h1>
+        <div>{question.data.content}</div>
+        <div>{question.data.status}</div>
+        <div>{getName(question.createdBy) ?? "Unknown user"}</div>
+        <div>{formatDate(new Date(question.createdAt).toLocaleString())}</div>
       </div>
-      {replies.length > 0 ? (
-        replies.map((reply) => (
-          <div key={reply.recordId}>
-            <p>{getName(reply.createdBy)}</p>
-            <p>{reply.createdAt}</p>
-            <h1>{reply.data.content}</h1>
+      {groups.length > 0 ? (
+        groups.map((group) => (
+          <div key={group.reply.recordId}>
+            <div>{getName(group.reply.createdBy) ?? "Unknown user"}</div>
+            <div>{formatDate(group.reply.createdAt)}</div>
+            <div>{group.reply.data.content}</div>
+
+            {group.reply.data.replyToId && (
+              <small>Replying to a deleted comment</small>
+            )}
+
+            <div style={{ marginLeft: "24px" }}>
+              {group.children.map((child) => (
+                <div key={child.recordId}>
+                  <div>{getName(child.createdBy) ?? "Unknown user"}</div>
+                  <div>{formatDate(child.createdAt)}</div>
+                  <div>{child.data.content}</div>
+                </div>
+              ))}
+            </div>
           </div>
         ))
       ) : (
-        <p>No reply at this momment.</p>
+        <p>No reply at this moment.</p>
       )}
     </>
   );

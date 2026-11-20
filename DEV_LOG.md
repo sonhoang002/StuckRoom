@@ -346,3 +346,53 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run test:unit`: **69 passed (69)**, including 8 `groupReplies` tests (agent).
 - `npm run type-check`: passes (agent).
+
+---
+
+## 2026-11-19 — Thread page (read-only)
+
+### Developer
+- Wired `rooms/[id].tsx`: two `useQuery` calls (question by `recordId`, replies by `questionId` oldest-first) with renamed destructuring; loading/error/not-found states; question details with author via `useUserLookup().getName` and formatted time; `groupReplies` rendering with indented children and a "Replying to a deleted comment" note for orphans.
+- Tidy-ups done: removed old `Group` from `types.ts`, exported `Group` from `threads.ts`, `replyToId?: string`. Committed `groupReplies` (`392b6b0`).
+
+### Agent
+- Review (minor): repeated `questions[0]` (assign once); redundant `questionStatus === "ready"` in the not-found check; reply times shown as raw ISO; `getName` can return null (needs a fallback); typo "momment".
+- Checked SDK client exports: only `getAuthToken()` exists for calling actions; there is no client action helper, so the reply form needs a small `fetch` wrapper.
+
+### Verification
+- `npm run type-check`: passes; eslint on `[id].tsx`: no output (agent).
+- Browser: not observed by agent.
+
+---
+
+## 2026-11-19 — `callAction` browser helper (in review)
+
+### Developer
+- Wrote `callAction(name, params): Promise<ActionResult>`: `getAuthToken()` (null → "Sign in first", no request), POST JSON with Bearer token, `!res.ok` → failure with status, try/catch for network/parse errors. Placed it at the bottom of `src/actions/index.ts`.
+- Added `src/lib/formatDate.ts` (`toLocaleString("en-US", …)`).
+
+### Agent
+- Review: `src/actions/index.ts` is server code (imported by the worker). Putting a browser helper there pulls the client SDK (`getAuthToken` from `deepspace`) into the worker module, and any page importing `callAction` would bundle all server action handlers into the browser. Asked to move it to `src/lib/actions.ts`.
+- `return data as ActionResult` is an assertion, not validation; JSON without a boolean `success` would reach the UI typed as a result.
+- Wrote `src/lib/actions.test.ts` (10 tests: signed out, request shape, success/failure pass-through, HTTP 401/404/500, network error, non-JSON, non-ActionResult JSON) with `vi.mock("deepspace")` and a stubbed `fetch`.
+
+### Verification
+- `npm run type-check`: passes (agent).
+- `npx vitest run src/lib/actions.test.ts`: fails to load, `Cannot find module '/src/lib/actions'` (helper not moved yet) (agent).
+
+---
+
+## 2026-11-19 — `callAction` complete
+
+### Developer
+- Moved `callAction` to `src/lib/actions.ts` (browser side); removed it and the `getAuthToken` import from the server actions file.
+- Questioned the agent's validation advice using the SDK docs' `as ActionResult` example; after discussing trust boundaries (own server response vs untrusted `params`), chose to add the inline runtime check (`unknown` → object, non-null, boolean `success`).
+
+### Agent
+- Explained the inline check and the type-guard alternative (`x is ActionResult`). Confirmed `!res.ok` already covers the 401/404 bodies in `action-routes.ts`.
+
+### Verification
+- `npx vitest run src/lib/actions.test.ts`: **10 passed (10)** (agent). Before the check: 9/10 (only the non-ActionResult JSON case failed), matching the agent's prediction.
+
+### Next
+- Reply form on the thread page using `callAction("postReply", …)`.
