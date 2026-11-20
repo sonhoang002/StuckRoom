@@ -396,3 +396,57 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 
 ### Next
 - Reply form on the thread page using `callAction("postReply", …)`.
+
+---
+
+## 2026-11-19 — Reply form (in review)
+
+### Developer
+- Wrote `src/components/ReplyForm.tsx` (props `questionId`, optional `replyToId`; `callAction("postReply", …)`; `submitting` state; `maxLength` 1000) and wired it into the thread page with a `replyingTo` state and per-reply "Reply" buttons; signed-out users see "Sign in to reply."
+- Reply `content` now `required: true`, `maxLength: 1000` in the schema. Used `formatDate` and an "Unknown user" fallback on the page.
+
+### Agent
+- Added a schema test for reply content limits.
+- Review findings (not changed by agent):
+  - ReplyForm: `setSubmitting(false)` is never called, so the button stays disabled after the first submit (success or failure); on failure `return result.error` discards the message instead of `setError`; content sent untrimmed.
+  - Page: the not-found check now runs before the loading check, so every thread shows "Question not found" while loading; `formatDate(new Date(...).toLocaleString())` re-parses a locale string; Reply button shown on orphans (server refuses) and to signed-out users; the reply target switches the bottom form silently and is never cleared after posting.
+- UI component tests not added: no DOM test environment (jsdom/testing-library) is installed; behavior is checked manually in the browser.
+
+### Verification
+- `npm run test:unit`: **80 passed (80)**; `npm run type-check`: passes; eslint: no output (agent).
+- Browser: not observed by agent.
+
+---
+
+## 2026-11-19 — Reply form fixes
+
+### Developer
+- ReplyForm: `setSubmitting(false)` after the await, `setError(result.error)` on failure, sends trimmed content, new optional `onSuccess` prop.
+- Page: loading → error → not-found order fixed; `formatDate(question.createdAt)`; Reply button only when signed in; nested ReplyForm renders under the chosen comment and closes via `onSuccess`; bottom form is always top-level.
+- Browser-checked by developer: signed-out window shows no Reply buttons or forms; "things look correct."
+
+### Agent
+- Review: on failure the form still clears the text and calls `onSuccess` (missing `return`), so a failed reply loses the user's text and closes the nested form; Reply button still shown on orphans; no Cancel; two open forms share `id="content"`.
+
+### Verification
+- `npm run test:unit`: **80 passed (80)**; type-check and eslint clean (agent).
+- Two-window realtime check: not yet reported.
+
+---
+
+## 2026-11-19 — Reply flow complete; realtime verified
+
+### Developer
+- ReplyForm: early `return` after `setError` (failed replies keep the text and the form stays open); `useId()` for unique label/field ids.
+- Page: Reply button only for signed-in users on non-orphan top-level replies; Cancel button for the nested form.
+- **Browser-verified by developer:** two-window test, a reply posted in one window appears in the other **without refreshing**; signed-out window shows no reply controls.
+
+### Agent
+- Re-reviewed; no remaining findings for this checkpoint.
+
+### Verification
+- `npm run test:unit`: **80 passed (80)**; type-check and eslint clean (agent).
+- Realtime sync: verified by developer in the browser (not observed by agent).
+
+### Next
+- My Questions page under `(protected)` (AuthGate already requires sign-in): `where: { createdBy: <my id> }`, Mark solved / Reopen via `callAction`.

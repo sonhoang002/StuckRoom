@@ -4,6 +4,10 @@ import { useQuery } from "deepspace";
 import { useUserLookup } from "deepspace";
 import { groupReplies } from "@/lib/threads";
 import { formatDate } from "@/lib/formatDate";
+import ReplyForm from "@/components/ReplyForm";
+import { useAuthProfileReady } from "deepspace";
+
+import { useState } from "react";
 
 export default function RoomDetail() {
   const { id } = useParams("/rooms/:id");
@@ -26,10 +30,8 @@ export default function RoomDetail() {
   const groups = groupReplies(replies);
   const question = questions[0];
   const { getName } = useUserLookup();
-
-  if (!question) {
-    return <p>Question not found</p>;
-  }
+  const { isSignedIn } = useAuthProfileReady({ requireUser: true });
+  const [replyingTo, setReplyingTo] = useState("");
 
   if (questionStatus === "loading" || repliesStatus === "loading") {
     return <p>Loading...</p>;
@@ -43,6 +45,10 @@ export default function RoomDetail() {
     return <p>{repliesError}</p>;
   }
 
+  if (!question) {
+    return <p>Question not found</p>;
+  }
+
   return (
     <>
       <div>
@@ -50,7 +56,7 @@ export default function RoomDetail() {
         <div>{question.data.content}</div>
         <div>{question.data.status}</div>
         <div>{getName(question.createdBy) ?? "Unknown user"}</div>
-        <div>{formatDate(new Date(question.createdAt).toLocaleString())}</div>
+        <div>{formatDate(question.createdAt)}</div>
       </div>
       {groups.length > 0 ? (
         groups.map((group) => (
@@ -58,11 +64,27 @@ export default function RoomDetail() {
             <div>{getName(group.reply.createdBy) ?? "Unknown user"}</div>
             <div>{formatDate(group.reply.createdAt)}</div>
             <div>{group.reply.data.content}</div>
-
             {group.reply.data.replyToId && (
               <small>Replying to a deleted comment</small>
             )}
+            {/* When user are signed in, allow them to reply */}
+            {isSignedIn && !group.reply.data.replyToId && (
+              <button onClick={() => setReplyingTo(group.reply.recordId)}>
+                Reply
+              </button>
+            )}
+            {/* When user target a comment to reply to, show the ReplyForm */}
+            {replyingTo === group.reply.recordId && (
+              <div>
+                <ReplyForm
+                  questionId={id}
+                  replyToId={replyingTo}
+                  onSuccess={() => setReplyingTo("")}
+                />
 
+                <button onClick={() => setReplyingTo("")}>Cancel</button>
+              </div>
+            )}
             <div style={{ marginLeft: "24px" }}>
               {group.children.map((child) => (
                 <div key={child.recordId}>
@@ -77,6 +99,7 @@ export default function RoomDetail() {
       ) : (
         <p>No reply at this moment.</p>
       )}
+      {isSignedIn ? <ReplyForm questionId={id} /> : <p>Sign in to reply.</p>}
     </>
   );
 }

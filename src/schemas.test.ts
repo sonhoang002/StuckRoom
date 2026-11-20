@@ -78,6 +78,11 @@ describe('schemas', () => {
   describe('reply visibility (accepted limitation: replies are readable by anyone)', () => {
     const reply = appSchemas.find((s) => s.name === 'reply')!
 
+    it('requires reply content server-side, capped at 1000 characters', () => {
+      const col = reply.columns.find((c) => c.name === 'content')
+      expect(col).toMatchObject({ required: true, maxLength: 1000 })
+    })
+
     it('blocks direct reply creation by members (replies go through the postReply action)', () => {
       expect(reply.permissions.member?.create).toBe(false)
     })

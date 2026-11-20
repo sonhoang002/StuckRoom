@@ -3,7 +3,13 @@ import { type CollectionSchema } from "deepspace/schema";
 export const replySchema: CollectionSchema = {
   name: "reply",
   columns: [
-    { name: "content", storage: "text", interpretation: "plain" },
+    {
+      name: "content",
+      storage: "text",
+      interpretation: "plain",
+      maxLength: 1000,
+      required: true,
+    },
     {
       name: "questionId",
       storage: "text",
