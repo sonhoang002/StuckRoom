@@ -509,3 +509,19 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check` clean; `npx eslint` on the page clean; `npm run test:unit` **80 passed (80)** (agent, PowerShell).
 - Two-window live update between `/my-questions` and `/rooms`: not yet reported.
+
+---
+
+## 2026-11-20 — My Questions complete; cron assigned
+
+### Developer
+- Confirmed solved questions should stay public. **Browser-verified:** two-window test — Mark Solved / Reopen on `/my-questions` updates `/rooms` live without refresh.
+- Committed `8e4afd8` "Add My Questions page with mark solved / reopen".
+
+### Agent
+- Checked `npx deepspace status --json` (read-only): live still serves `15f5043`; `8e4afd8` is local-ahead, not yet deployed.
+- Read the SDK cron source before assigning the next task: `ctx.records.query` returns `unknown[]` record envelopes, accepts only `where` + `limit` (no offset/orderBy, default 50, ~30KB page cap), runs as an app action (RBAC-off), and throws on tool failure.
+- Assigned checkpoint 1 of the 7-day cron: pure helper `src/lib/inactivity.ts`.
+
+### Verification
+- Last agent run (earlier today): `npm run test:unit` 80/80, type-check and eslint clean. No code changes since.
