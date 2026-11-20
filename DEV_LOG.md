@@ -525,3 +525,69 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 
 ### Verification
 - Last agent run (earlier today): `npm run test:unit` 80/80, type-check and eslint clean. No code changes since.
+
+---
+
+## 2026-11-20 — Deploy 3; inactivity helper
+
+### Developer
+- Committed `dcbf52d` and deployed: live release 3 serves `dcbf52d` (agent confirmed via `npx deepspace status --json`).
+- Wrote `src/lib/inactivity.ts`: `INACTIVE_AFTER_MS` (7 days) and `isInactive(lastActive: Date, now: Date)`; chose `>=` (exactly 7 days counts as inactive).
+- Design call: take `Date` (not strings) and validate untrusted rows in `cron.ts` before calling — "parse at the boundary".
+
+### Agent
+- Review: first attempt subtracted `lastActive - now` (never true for past dates); fixed by developer. Noted that a `Date` can still be invalid (`getTime()` → NaN), so the boundary must check `Number.isNaN`; NaN comparisons make `isInactive` return false (safe default).
+- Wrote `src/lib/inactivity.test.ts` (8 tests: 7-day constant, well past, 1 day, exactly 7 days, 1 ms under, equal, future date, invalid date).
+- Checked SDK: `useCronMonitor().trigger(taskName)` can run a task manually (no cron UI exists yet).
+- Assigned checkpoint 2: `mark-inactive` task in `src/cron.ts`.
+
+### Verification
+- `npm run type-check` clean; eslint clean; `npm run test:unit` **88 passed (88)** (agent, PowerShell).
+
+---
+
+## 2026-11-20 — Cron task: first attempt reviewed
+
+### Developer
+- Wrote `src/cron.ts`: `mark-inactive` task (hourly); `toCandidate(row: unknown)` boundary validation (`in` + `typeof` narrowing, array check, `lastActiveDate ?? createdAt`, `Number.isNaN`); queries `status: "active"` (limit 50), computes `now` once, updates stale questions to inactive + private.
+- Decision: if one update fails, the remaining questions should still be checked.
+
+### Agent
+- Verified from SDK source: unset columns are omitted from `data` (`rowToData` skips null/undefined), so the `createdAt` fallback works; `CronRoom` catches a thrown task error and records the run as failed in cron history.
+- Wrote `src/cron.test.ts` (12 tests, `deepspace/worker` mocked, fake timers): task registration, unknown names ignored, room id/owner, active-only query, createdAt vs lastActiveDate, mixed batch, 11 kinds of malformed rows skipped, per-update failure isolation, query failure rejects.
+- Review: no `try/catch` around the update, so the first thrown update aborts the loop (contradicts the decision above). Minor: stale scaffold comment; `new Date(Date.now())` → `new Date()`.
+
+### Verification
+- `npm run type-check` clean; eslint clean on `src/cron.ts` and `src/cron.test.ts`.
+- `npm run test:unit`: **99 passed, 1 failed (100)** — failing: "keeps processing the remaining questions when one update throws" (expected `['q1','q2','q3']`, received `['q1','q2']`). Expected failure pointing at the missing try/catch.
+
+---
+
+## 2026-11-20 — Cron: failure isolation fixed; option B pending
+
+### Developer
+- Added `try/catch` + `console.error` in the loop; one failed update no longer stops the rest.
+- Decision **B**: keep processing, then fail the run if any update failed — "the app should alert that something went wrong instead of silently logging it" (cron history records thrown runs as failed).
+
+### Agent
+- Added 2 tests to `src/cron.test.ts` encoding option B (rejects after all 3 updates attempted when one fails; resolves when all succeed).
+- Review: the code still implements A (no failure count / throw after the loop); `try` wraps validation and the `continue`s, not just the update (hence the `result?.recordId ?? "unknown"` fallback); scaffold comment and `new Date(Date.now())` nits remain.
+
+### Verification
+- `npm run type-check` clean; eslint clean.
+- `npm run test:unit`: **101 passed, 1 failed (102)** — failing: "rejects after processing all questions when any update failed" ("promise resolved undefined instead of rejecting"). Expected; points at the missing option B code.
+
+---
+
+## 2026-11-20 — 7-day inactivity cron complete (unit-level)
+
+### Developer
+- Implemented option B: `failed` counter in the `catch`; throws `Failed to update N inactive question(s)` after the loop. Moved the null/`isInactive` checks above the `try` so only the update is wrapped. Removed the scaffold comment; `new Date()`.
+
+### Agent
+- Re-reviewed: no remaining findings (nit: `result.recordId ?? "unknown"` fallback is now unreachable).
+- Found `npx deepspace logs` for live verification: `CronRoom` logs `[cron] mark-inactive ok <ms>` / `failed` per run.
+
+### Verification
+- `npm run type-check` clean; eslint clean; `npm run test:unit` **102 passed (102)** (agent, PowerShell).
+- Live cron run: not yet observed (needs deploy, then a site visit to arm the schedule, then up to an hour). No real question is 7+ days old yet (first deploy 2026-11-19), so a live inactive transition can't be observed before the deadline; the transition is covered by unit tests with a mocked context only.
