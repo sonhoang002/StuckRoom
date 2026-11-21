@@ -102,11 +102,25 @@ export const actions: Record<string, ActionHandler<Env>> = {
 
     try {
       const anthropic = createDeepSpaceAI(ctx.env, "anthropic");
-      const { text } = await generateText({
+      const { text, finishReason, usage } = await generateText({
         model: anthropic("claude-haiku-5-5"),
         prompt,
-        maxOutputTokens: 300,
+        // Caps ALL output tokens, including any hidden reasoning tokens.
+        // 300 truncated a live summary mid-sentence (2026-11-21); 1000 leaves room.
+        maxOutputTokens: 1000,
       });
+
+      // Diagnostics for `npx deepspace logs`: why the model stopped, and how many
+      // output tokens went to visible text vs. reasoning.
+      console.log(
+        `[summarize] ${questionId} finish=${finishReason} outputTokens=${usage?.outputTokens} reasoningTokens=${usage?.outputTokenDetails?.reasoningTokens}`,
+      );
+
+      // Only a natural stop is a complete answer. "length" means the text was
+      // cut off; never save a truncated summary as if it were finished.
+      if (finishReason !== "stop") {
+        throw new Error(`Summary incomplete: finishReason=${finishReason}`);
+      }
 
       if (text.trim() === "") {
         throw new Error("Empty result");

@@ -34,7 +34,7 @@ Signed-out visitors can read active and solved questions. Posting, replying, and
 2. **Status changes happen in server actions, not direct writes.** `update: 'own'` can't restrict *values*, so a direct write would let an owner set `inactive` or `public` themselves. Members can write only `title` and `content` directly.
 3. **`postReply` is one server action.** It creates the reply and refreshes the asker's 7-day clock. Two browser calls would leave the clock stale if the tab closed between them. If the clock update fails after the reply was saved, the action still reports success (and logs the error), so the user doesn't resend and create a duplicate reply.
 4. **`summarize` is its own action, separate from `markSolved`.** Each action does one job. The page calls `summarize` after a successful `markSolved`. If the model call fails, or the tab closes in between, the question is still solved, and the asker can retry with **Generate summary**.
-5. **AI prompt safety and cost.** Thread text is user-written, so the prompt wraps it in `<thread>` delimiters (stripped from user input) and tells the model to treat it as data, not instructions. The thread is capped at 6,000 characters, keeping the question and the *newest* replies (that's where the fix usually is). Output is capped at 300 tokens, and an empty model output is rejected. Measured cost: about **$0.0001 per summary**, net, from the DeepSpace usage dashboard.
+5. **AI prompt safety and cost.** Thread text is user-written, so the prompt wraps it in `<thread>` delimiters (stripped from user input) and tells the model to treat it as data, not instructions. The thread is capped at 6,000 characters, keeping the question and the *newest* replies (that's where the fix usually is). Output is capped at 1,000 tokens, and only a complete answer is saved: an empty output, or any `finishReason` other than `stop`, is rejected. (A live summary was once cut off mid-sentence at a 300-token cap and saved anyway; the check was added after that.) Measured cost: about **$0.0001 per summary**, net, from the DeepSpace usage dashboard.
 6. **The cron fails loudly.** Rows are validated from `unknown` before use. One failed update doesn't stop the run, but the run throws at the end if any update failed, so the cron history shows the failure instead of hiding it in logs.
 
 ## Known limitations
@@ -63,7 +63,7 @@ Requires Node and the DeepSpace CLI (`npx deepspace`).
 npm install
 npm run dev          # deepspace dev start
 npm run type-check   # tsc --noEmit
-npm run test:unit    # Vitest unit tests (134 at the time of writing)
+npm run test:unit    # Vitest unit tests (139 at the time of writing)
 npm run lint
 ```
 

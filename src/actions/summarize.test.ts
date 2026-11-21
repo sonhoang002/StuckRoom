@@ -80,9 +80,19 @@ function promptSent(): string {
   return call.prompt
 }
 
+// What generateText returns for a finished answer.
+function complete(text: string) {
+  return {
+    text,
+    finishReason: 'stop',
+    usage: { outputTokens: 40, outputTokenDetails: { reasoningTokens: 0 } },
+  }
+}
+
 beforeEach(() => {
   generateText.mockReset()
-  generateText.mockResolvedValue({ text: '  The loop lacked an increment; adding i++ fixed it.  ' })
+  generateText.mockResolvedValue(complete('  The loop lacked an increment; adding i++ fixed it.  '))
+  vi.spyOn(console, 'log').mockImplementation(() => {})
   createDeepSpaceAI.mockClear()
   modelFactory.mockClear()
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -171,7 +181,7 @@ describe('summarize', () => {
       expect(createDeepSpaceAI).toHaveBeenCalledWith(env, 'anthropic')
       expect(modelFactory).toHaveBeenCalledWith('claude-haiku-5-5')
       expect(generateText).toHaveBeenCalledWith(
-        expect.objectContaining({ model: { fakeModel: 'claude-haiku-5-5' }, maxOutputTokens: 300 }),
+        expect.objectContaining({ model: { fakeModel: 'claude-haiku-5-5' }, maxOutputTokens: 1000 }),
       )
     })
 
@@ -216,8 +226,35 @@ describe('summarize', () => {
       if (!result.success) expect(result.error).not.toContain('app_123')
     })
 
+    // Bug 2026-11-21: a live summary was saved cut off mid-sentence.
+    it('rejects a truncated answer (finishReason "length") and saves nothing', async () => {
+      generateText.mockResolvedValue({
+        text: 'This is a test thread titled "Testing" that confirms the reply system works. Replies from',
+        finishReason: 'length',
+        usage: { outputTokens: 300, outputTokenDetails: { reasoningTokens: 270 } },
+      })
+      const { ctx, update } = makeCtx()
+      const result = await run(ctx)
+      expect(result).toEqual({ success: false, error: expect.any(String) })
+      expect(update).not.toHaveBeenCalled()
+    })
+
+    it.each(['content-filter', 'error', 'other'])('rejects finishReason %s and saves nothing', async (finishReason) => {
+      generateText.mockResolvedValue({ text: 'Some text', finishReason, usage: { outputTokens: 5 } })
+      const { ctx, update } = makeCtx()
+      expect((await run(ctx)).success).toBe(false)
+      expect(update).not.toHaveBeenCalled()
+    })
+
+    it('still saves a complete answer when the provider reports no usage details', async () => {
+      generateText.mockResolvedValue({ text: 'Fixed by adding i++.', finishReason: 'stop', usage: {} })
+      const { ctx, update } = makeCtx()
+      expect((await run(ctx)).success).toBe(true)
+      expect(update).toHaveBeenCalledWith('question', QID, { summary: 'Fixed by adding i++.' })
+    })
+
     it.each(['', '   ', '\n\t'])('rejects an empty model output (%j) instead of saving it', async (text) => {
-      generateText.mockResolvedValue({ text })
+      generateText.mockResolvedValue(complete(text))
       const { ctx, update } = makeCtx()
       const result = await run(ctx)
       expect(result.success).toBe(false)
