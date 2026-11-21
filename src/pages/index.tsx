@@ -29,21 +29,28 @@ export default function Landing() {
         data-testid="static-landing"
         className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
       >
-        <p className="mb-3 text-sm uppercase tracking-widest text-muted-foreground">{APP_NAME}</p>
-        <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          A DeepSpace app with a static front door
+        <p className="mb-4 text-sm font-medium uppercase tracking-widest text-muted-foreground">{APP_NAME}</p>
+        <h1 className="mb-5 max-w-3xl text-4xl font-medium leading-tight tracking-tight text-foreground sm:text-5xl">
+          Stuck on a problem? Ask it in a live room.
         </h1>
-        <p className="mb-8 max-w-md text-muted-foreground">
-          This landing page ships no auth call and no realtime connection — it's a
-          plain static page. The live app, with sign-in and synced data, lives
-          behind the link below.
+        <p className="mb-8 max-w-xl text-lg leading-8 text-muted-foreground">
+          Post a question and work through it with others in real time. When it is
+          solved, an AI summary keeps the answer for the next person.
         </p>
-        <Link
-          to="/home"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Enter the app
-        </Link>
+        <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+          <Link
+            to="/home"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          >
+            Ask a question
+          </Link>
+          <Link
+            to="/rooms"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          >
+            Browse open rooms
+          </Link>
+        </div>
       </div>
     </>
   )

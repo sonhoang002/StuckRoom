@@ -708,3 +708,39 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 - `npm run type-check` clean; eslint clean on the 3 files; `npm run test:unit` **134 passed (134)** (agent).
 - Browser check of the new wiring (mark solved → summary appears; button labels): **not yet done** — developer to verify.
 - Credit cost per summary: not measured yet.
+
+---
+
+## 2026-11-21 — AI summary verified live; cost measured; deployed
+
+### Developer
+- **Browser-verified:** marking "How do I solved this?" (5/x = 10) solved produced the summary automatically. The summary correctly reports that a first reply said x = 2, a later reply corrected it to x = 0.5, and that the thread was resolved with the correction (grounded in the thread; the newest replies were kept).
+- **Measured cost** (DeepSpace dashboard, Recent API Usage): each summary shows two `anthropic / proxy` rows, +$0.0002 and −$0.0001 (meaning of the negative row not confirmed; net ≈ $0.0001 per summary). The 30-day usage chart rounds to $0.00.
+- Committed `16d5fa9` and deployed: live release 6 serves `16d5fa9` (agent confirmed via `npx deepspace status --json`).
+
+### Agent
+- Interpreted the dashboard numbers; recorded them as measured.
+
+### Verification
+- Last agent run: `npm run type-check` clean, `npm run test:unit` 134/134 (before commit; no code changed since).
+- Feature status: all planned features (My Questions, 7-day cron, presence, AI summary) are live. The live cron run (`[cron] mark-inactive ok` in `npx deepspace logs`) has not been reported yet.
+
+---
+
+## 2026-11-21 — Navigation + real Home/landing (agent-implemented at developer's request)
+
+### Developer
+- Pointed out the app had no way to navigate (no Rooms / My Questions links) and the Home and landing pages were still scaffold placeholders. Asked the agent to implement them using the "taste" design skill.
+
+### Agent (wrote this code)
+- Used the installed `design-taste-frontend` skill's rules that fit an app (clear headline with a real fact, verb+object buttons, hover/press/focus states, 44px tap targets, no invented testimonials or stats), not its static-site kit or browser gate — kept the app's existing tokens and the look of the already-styled pages.
+- `src/nav.ts`: Home, Rooms, My questions (`roles: ['member']`, so signed-out visitors don't see it); removed the scaffold Settings link (page still exists).
+- `src/constants.ts`: `APP_NAME` display name `StuckRoom`.
+- `src/components/Navigation.tsx`: brand icon, active-link state, larger tap targets, press feedback; kept all `data-testid` hooks.
+- `src/pages/(app)/home.tsx`: rewritten — headline + explanation, Ask/Browse actions (signed out: "Sign in to ask" opens `AuthOverlay`), ask card with `NewQuestionForm`, live "Latest rooms" list (`useQuery` public, newest 5), "How a room works" (3 steps, all describing implemented behavior).
+- `src/components/NewQuestionForm.tsx`: styling, `Input` for the title, placeholders, character count, "Post question" label; submit logic unchanged.
+- `src/pages/index.tsx` + `src/seo.ts`: static landing copy and SEO description replaced; `data-testid="static-landing"` and `<Seo>` kept.
+
+### Verification
+- `npm run type-check` clean; eslint clean on all 7 files; `npm run test:unit` **134 passed (134)** (includes the prerender test for `/`).
+- **Not visually checked by the agent** (no browser run); developer to check desktop + phone width.
