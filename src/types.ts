@@ -4,6 +4,7 @@ export type Question = {
   status: "active" | "inactive" | "solved";
   visibility: "public" | "private";
   lastActiveDate?: string | null;
+  summary?: string;
 };
 
 export type Reply = {

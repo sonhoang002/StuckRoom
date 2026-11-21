@@ -608,3 +608,103 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check` clean; eslint clean; `npm run test:unit` **102 passed (102)** (agent). No automated tests for presence (UI).
 - Browser re-test after the fix (different threads must not see each other; same thread must): **pending developer report**.
+
+### Verification (update)
+- **Browser-verified by developer** after the fix: windows on different threads do not see each other; windows on the same thread do.
+
+---
+
+## 2026-11-20 — AI summary: design decisions
+
+### Developer
+- **(b) separate `summarize` action**, called by the page after `markSolved` succeeds — one action, one job.
+- **Reopen keeps the summary** (a later solve regenerates it).
+- Billing: willing to pay to confirm the feature works, not to keep paying afterwards. Has OpenAI API credit, no Anthropic key; asked whether to use OpenAI temporarily.
+
+### Agent
+- Verified from SDK source: a server action can call a model via `createDeepSpaceAI(ctx.env, provider)` + `generateText` from `ai@7` (installed). Providers: `anthropic | openai | cerebras`, routed through the DeepSpace proxy and billed to **DeepSpace credits** (owner via `APP_OWNER_JWT` by default, or the caller via `{ authToken: ctx.callerJwt }`) — no personal API key involved. SDK default summarization model: `claude-haiku-5-5`.
+- Pointed out the (b) risk (tab closes after `markSolved` → solved with no summary) and proposed an owner-only "Generate summary" retry button when solved and no summary exists.
+- Recommended against a personal OpenAI key (a secret to manage, bypasses the platform AI primitive, and the deployed app keeps spending it). Open: developer to check DeepSpace credit balance on the dashboard.
+
+### Verification
+- No code changes. No model calls made.
+
+---
+
+## 2026-11-21 — AI summary checkpoint 1: `summary` column + display
+
+### Developer
+- Added optional `summary` column (`storage: "text"`, `interpretation: "plain"`) to `question`; left out of `writableFields`. Added `summary?: string` to `Question`. Thread page shows "Summary (from when this was solved): …" when present.
+- Working tree also contains a large Tailwind styling pass on `rooms/[id].tsx`, `rooms/index.tsx`, and `my-questions.tsx` (+389/−109 lines total). **Authorship to confirm with developer** for the submission note (agent did not write it).
+
+### Agent
+- Review: checkpoint correct; existing test already pins member `writableFields` to `['title','content']`, so `summary` stays server-only. Nit: `: ""` branch → `&&`/`null`; summary block unstyled amid the new styling.
+- Added 1 test to `src/schemas.test.ts` (summary column exists, text, optional).
+
+### Verification
+- `npm run type-check` clean; eslint clean on the 3 changed files; `npm run test:unit` **103 passed (103)** (agent).
+- Styling pass: not reviewed in the browser by agent; lint/type-check only.
+
+---
+
+## 2026-11-21 — Styling authorship; summary prompt spec
+
+### Developer
+- **Correction to the previous entry:** the Tailwind styling pass on `rooms/[id].tsx`, `rooms/index.tsx`, and `my-questions.tsx` was **not written by the developer** (no time); it came from another AI tool, not this assistant. Record it as AI-generated styling in the submission note.
+- Decision: when a thread exceeds the prompt cap, **drop the oldest replies** (the solution is usually near the end); always keep the question. Started `src/lib/summaryPrompt.ts` (`MAX_THREAD_CHARS = 6000`, signature only).
+
+### Agent
+- Wrote `src/lib/summaryPrompt.test.ts` (10 tests) encoding the spec: question title/content inside `<thread>…</thread>`; instructions before the thread mentioning instructions; replies oldest-first; no-replies case; over the cap → newest contiguous block kept, oldest dropped, question + kept reply text ≤ `MAX_THREAD_CHARS`, as many as fit.
+
+### Verification
+- `npm run type-check`: **1 error** (TS2355, `buildSummaryPrompt` has no return yet — expected, stub).
+- `npm run test:unit`: **105 passed, 8 failed (113)** — the 8 failures are the new spec tests against the stub (expected).
+
+---
+
+## 2026-11-21 — Summary prompt builder implemented
+
+### Developer
+- Implemented `buildSummaryPrompt`: budget = cap − title − content; walks replies newest→oldest, `unshift`s while they fit, stops at the first that doesn't; returns instructions + `<thread>` block.
+
+### Agent
+- Review: correct against the spec. Findings: a reply containing the literal text `</thread>` can close the delimiter early (prompt-injection escape; low impact since output is display-only and the model has no tools — recommended stripping the delimiter from user text); template-literal indentation is sent to the model; replies not labeled/separated; instruction omits "what the problem was and what solved it"; `let kept` → `const`.
+- Checked SDK for checkpoint 3: `ctx.tools.query` supports `where`, `orderBy`, `orderDir`, `limit` (default 50) and returns `{ success, data: { records, count } }`.
+
+### Verification
+- `npm run type-check` clean; eslint clean; `npm run test:unit` **113 passed (113)** (agent).
+
+---
+
+## 2026-11-21 — `summarize` action + first live AI summary
+
+### Developer
+- Prompt builder fixes: `clean()` strips `<thread>`/`</thread>` from user text; prompt built with `[...].join("\n")`; replies labeled `Reply N:`; `const kept`.
+- Wrote the `summarize` server action: validate `questionId` → owner check → solved-only → query replies `desc` limit 50 then `.reverse()` (explained: with >50 replies, `asc` would return the oldest 50 and drop the newest) → `buildSummaryPrompt` → `createDeepSpaceAI(ctx.env, "anthropic")("claude-haiku-5-5")` + `generateText` (`maxOutputTokens: 300`) in try/catch → reject empty output → `tools.update({ summary })`.
+- Added a Summarize button on My Questions (`handleSummarize` via `callAction`).
+- **Browser-verified (live model call, developer's DeepSpace credits):** summarizing a solved question with placeholder text and no replies produced a summary saying the thread contains no real question or resolution (did not invent a solution). Credit cost per call: not measured yet.
+
+### Agent
+- Wrote `src/actions/summarize.test.ts` (20 tests; `ai` and `createDeepSpaceAI` mocked — no credits): validation, owner-only, solved-only, failed lookups pass through, desc/limit-50 query, oldest-first prompt, proxy + model + output cap, trimmed save, writes only `summary`, no-replies case, model throw → friendly error without leaking internals, empty output rejected.
+- Added 1 test to `src/lib/summaryPrompt.test.ts` (delimiters stripped from user text).
+- Review findings: `markSolved` success does not call `summarize` yet (decision b); Summarize button shows for every status (server rejects non-solved); `title`/`content` read with `as string` (a type assertion, not a runtime check); summary block still unstyled.
+
+### Verification
+- `npm run type-check` clean; eslint clean; `npm run test:unit` **134 passed (134)** (agent).
+
+---
+
+## 2026-11-21 — AI summary wiring (agent-implemented at developer's request)
+
+### Developer
+- Asked the agent to implement the remaining small review items to save time before the deadline. (Had already limited the Summarize button to `status === "solved"`.)
+
+### Agent (wrote this code)
+- `my-questions.tsx`: `handleMarkSolved` now calls `summarize` after `markSolved` succeeds (decision b); a summary failure shows "Marked as solved, but the summary failed: …" and leaves the question solved. Button label is "Generate summary" / "Regenerate summary" depending on whether a summary exists (the retry path), with a `Sparkles` icon.
+- `rooms/[id].tsx`: styled the summary block as a labeled section ("AI summary (from when this was solved)").
+- `src/actions/index.ts`: `ctx.tools.get<Question>(...)` in `summarize`, removing the `as string` casts on title/content.
+
+### Verification
+- `npm run type-check` clean; eslint clean on the 3 files; `npm run test:unit` **134 passed (134)** (agent).
+- Browser check of the new wiring (mark solved → summary appears; button labels): **not yet done** — developer to verify.
+- Credit cost per summary: not measured yet.

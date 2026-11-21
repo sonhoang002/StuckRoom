@@ -40,6 +40,11 @@ export const questionSchema: CollectionSchema = {
       storage: "text",
       interpretation: { kind: "datetime" },
     },
+    {
+      name: "summary",
+      storage: "text",
+      interpretation: "plain",
+    },
   ],
   visibilityField: "visibility",
   permissions: {

@@ -64,6 +64,12 @@ describe('schemas', () => {
       expect(col).toMatchObject({ required: true, maxLength: max })
     })
 
+    it('has an optional text summary column (written only by the summarize action)', () => {
+      const col = question.columns.find((c) => c.name === 'summary')
+      expect(col).toMatchObject({ storage: 'text' })
+      expect(col?.required).toBeFalsy()
+    })
+
     it('lets members write only title and content directly (status/visibility go through actions)', () => {
       expect(question.permissions.member?.writableFields).toEqual(['title', 'content'])
     })
