@@ -591,3 +591,20 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check` clean; eslint clean; `npm run test:unit` **102 passed (102)** (agent, PowerShell).
 - Live cron run: not yet observed (needs deploy, then a site visit to arm the schedule, then up to an hour). No real question is 7+ days old yet (first deploy 2026-11-19), so a live inactive transition can't be observed before the deadline; the transition is covered by unit tests with a mocked context only.
+
+---
+
+## 2026-11-20 — Presence on threads
+
+### Developer
+- Wrote `src/components/ThreadPresence.tsx` (`usePresenceRoom(\`question:${questionId}\`)`; nothing while disconnected, "Just you here", or "Also here: <names>") and rendered it on `rooms/[id].tsx`.
+- First browser test showed the two windows seeing each other; observed that **signed-out visitors appear as "Anonymous"** peers, and that the signed-out window shows the question author as "Unknown user".
+- Fixed after review: destructured props, single joined line of names, `return null`. Cleaned the unreachable `?? "unknown"` in `src/cron.ts`.
+
+### Agent
+- Review: the component took `questionId: string` as its whole argument (type-check error TS2322). At runtime it received the props object, so the scope was `"question:[object Object]"` — **every thread shared one presence room**; the first browser test passed by accident. Explained the `question:` prefix as namespacing (all presence scopes share one app-wide namespace). Also flagged one-`div`-per-peer without keys.
+- Noted for polish: `useUserLookup` names appear unavailable to signed-out visitors ("Unknown user"); not investigated.
+
+### Verification
+- `npm run type-check` clean; eslint clean; `npm run test:unit` **102 passed (102)** (agent). No automated tests for presence (UI).
+- Browser re-test after the fix (different threads must not see each other; same thread must): **pending developer report**.

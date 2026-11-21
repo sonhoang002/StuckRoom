@@ -117,10 +117,7 @@ export async function runTask(name: string, env: Env): Promise<void> {
       });
     } catch (err) {
       failed++;
-      console.error(
-        `Failed to update question ${result.recordId ?? "unknown"}:`,
-        err,
-      );
+      console.error(`Failed to update question ${result.recordId}:`, err);
     }
   }
 

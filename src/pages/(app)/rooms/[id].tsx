@@ -6,6 +6,7 @@ import { groupReplies } from "@/lib/threads";
 import { formatDate } from "@/lib/formatDate";
 import ReplyForm from "@/components/ReplyForm";
 import { useAuthProfileReady } from "deepspace";
+import ThreadPresence from "@/components/ThreadPresence";
 
 import { useState } from "react";
 
@@ -51,6 +52,7 @@ export default function RoomDetail() {
 
   return (
     <>
+      <ThreadPresence key={id} questionId={id} />
       <div>
         <h1>{question.data.title}</h1>
         <div>{question.data.content}</div>
