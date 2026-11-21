@@ -744,3 +744,19 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check` clean; eslint clean on all 7 files; `npm run test:unit` **134 passed (134)** (includes the prerender test for `/`).
 - **Not visually checked by the agent** (no browser run); developer to check desktop + phone width.
+
+---
+
+## 2026-11-21 — Deployed release 7, GitHub copy, README
+
+### Developer
+- Checked the navigation/home work, committed `90c4a2c`, and deployed (agent confirmed via `npx deepspace status --json`: release 7 serves `90c4a2c`). Added a GitHub review copy (`origin` = `github.com/sonhoang002/StuckRoom`) and pushed. Clicked through the live site (developer-reported).
+- Asked whether to add image/PDF attachments; agreed to list it as next work instead of building it on deadline day.
+
+### Agent
+- Drafted `README.md` (for reviewers) from DEV_LOG and the code: features, the 7 DeepSpace integrations used, key design decisions, measured AI cost, known limitations, next steps (attachments via DeepSpace file storage `useR2Files`, which exists in the SDK but was not tried), run/test commands, and a short "How it was built" paragraph in the developer's voice **for the developer to confirm or edit**.
+- Checked before the GitHub push: no `.env`/`.dev.vars`/secret files are tracked (`.dev.vars` is git-ignored).
+
+### Verification
+- README facts cross-checked against code and earlier test results; no code changed (last run: 134/134 tests, type-check clean).
+- Live cron run (`[cron] mark-inactive ok`): still not reported.
