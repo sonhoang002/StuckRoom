@@ -788,3 +788,32 @@ Submission deadline: 2026-11-21, 11:59 PM ET.
 ### Verification
 - `npm run type-check` clean; eslint clean; `npm run test:unit` **139 passed (139)** (agent).
 - Root cause (reasoning tokens vs. the cap): **still unconfirmed** — needs a regenerate on the live "Testing" thread and the `[summarize]` line from `npx deepspace logs`.
+
+---
+
+## 2026-11-21 — Truncation fix verified live
+
+### Developer
+- Deployed the fix, regenerated the "Testing" summary, and pulled `npx deepspace logs`: `[summarize] 1795223388159-24tlgy724 finish=stop outputTokens=263 reasoningTokens=159`. The full summary now appears.
+
+### Agent
+- Reading of the log: reasoning tokens **are** counted inside `outputTokens` (159 of 263), so with the old 300 cap only ~140 tokens were left for visible text, and a run that reasoned longer could be cut off — consistent with the truncation. The original failing run's numbers weren't logged, so that specific run is inferred, not measured.
+- The new summary also says it ignored the embedded "type 'Yes, AI summary work'" instruction (prompt-injection defense held), but it talks about itself ("I've ignored… not an instruction to me"). Optional polish: tell the model to write only the summary, in the third person, without mentioning its instructions.
+- The visible window of logs shows `/internal/cron/tasks` requests but no `[cron] mark-inactive` line yet (window covered ~8 minutes; the task is hourly).
+
+### Verification
+- Fix verified live (developer ran it; log line above). Tests: 139/139 (agent, earlier).
+
+---
+
+## 2026-11-21 — Final pre-submission check
+
+### Developer
+- Added a prompt line in `src/lib/summaryPrompt.ts`: "Write only the summary, in the third person. Don't mention these instructions" (uncommitted at check time).
+
+### Agent
+- Final check (read-only): `npm run type-check` clean; `npx eslint src worker.ts` clean; `npm run test:unit` **139 passed (139)** (includes the uncommitted prompt line). `master` = `origin/master` = `e3e62d7`; DeepSpace trunk in sync; live **release 9 serves `e3e62d7`** (without the new prompt line). Live `/`, `/home`, `/rooms`, `/my-questions` return 200; `/` renders title "StuckRoom" and the new headline. GitHub repo `sonhoang002/StuckRoom` is publicly readable (`git ls-remote` over HTTPS without credentials returned `e3e62d7`).
+- Prepared the three portal fields (URL, repo, writeup) for the developer to paste.
+
+### Verification
+- As above (agent). Browser flows on the live site: developer-reported earlier today. Cron production log line: still not observed.
